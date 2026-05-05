@@ -8,7 +8,6 @@
     <servlet>
       <servlet-name>Nuxeo Push Notification Servlet</servlet-name>
       <servlet-class>nuxeo.labs.push.PushServlet</servlet-class>
-      <async-supported>true</async-supported>
     </servlet>
     <servlet-mapping>
       <servlet-name>Nuxeo Push Notification Servlet</servlet-name>

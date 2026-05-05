@@ -20,14 +20,13 @@
 package nuxeo.labs.push;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.nuxeo.runtime.api.Framework;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.AsyncEvent;
-import jakarta.servlet.AsyncListener;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,9 +38,13 @@ import jakarta.servlet.http.HttpServletResponse;
  * authentication (cookie or token). The connection is kept open and the server
  * pushes events as they occur.
  * <p>
- * The servlet uses async mode to avoid blocking a thread per connection.
- * Authentication is handled by Nuxeo's standard authentication filter, which is
- * wired to this URL in the deployment-fragment.xml.
+ * The servlet blocks the request thread for the duration of the SSE connection.
+ * This is necessary because Nuxeo's servlet filter chain does not support async
+ * servlets ({@code AsyncContext}). This follows the same pattern used by Nuxeo's
+ * internal {@code StreamServlet}.
+ * <p>
+ * Authentication is handled by Nuxeo's standard NuxeoAuthenticationFilter, which
+ * is wired to this URL in the deployment-fragment.xml.
  *
  * @since 2025.1
  */
@@ -51,8 +54,8 @@ public class PushServlet extends HttpServlet {
 
     private static final Logger log = LogManager.getLogger(PushServlet.class);
 
-    /** Async timeout: 0 means no timeout (connection stays open until client disconnects). */
-    private static final long ASYNC_TIMEOUT = 0;
+    /** Keepalive interval in seconds. Also the poll timeout for the blocking queue. */
+    private static final long KEEPALIVE_INTERVAL_SECONDS = 30;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -71,25 +74,14 @@ public class PushServlet extends HttpServlet {
         // Prevent buffering by proxies
         response.setHeader("X-Accel-Buffering", "no");
 
-        // Start async context
-        AsyncContext asyncContext = request.startAsync();
-        asyncContext.setTimeout(ASYNC_TIMEOUT);
-
-        SseConnection connection;
-        try {
-            connection = new SseConnection(asyncContext);
-        } catch (IOException e) {
-            log.error("Failed to create SSE connection for user: {}", username, e);
-            return;
-        }
+        PrintWriter writer = response.getWriter();
+        SseConnection connection = new SseConnection(writer);
 
         PushNotificationService service = Framework.getService(PushNotificationService.class);
         service.register(username, connection);
 
         // Send initial comment to confirm connection
-        try {
-            connection.sendComment("connected");
-        } catch (IOException e) {
+        if (!connection.sendComment("connected")) {
             log.debug("Failed to send initial SSE comment to user: {}", username);
             service.unregister(username, connection);
             return;
@@ -97,33 +89,31 @@ public class PushServlet extends HttpServlet {
 
         log.debug("SSE connection established for user: {}", username);
 
-        // Register cleanup listener
-        asyncContext.addListener(new AsyncListener() {
-            @Override
-            public void onComplete(AsyncEvent event) {
-                cleanup();
+        try {
+            // Blocking loop: wait for messages or send keepalives
+            while (!connection.isClosed()) {
+                String message = connection.waitForMessage(KEEPALIVE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+                if (message != null) {
+                    // A message was enqueued by the service
+                    if (!connection.sendEvent(message)) {
+                        log.debug("Client disconnected while sending message to user: {}", username);
+                        break;
+                    }
+                } else {
+                    // Timeout — send keepalive to detect disconnected clients
+                    if (!connection.sendComment("keepalive")) {
+                        log.debug("Client disconnected during keepalive for user: {}", username);
+                        break;
+                    }
+                }
             }
-
-            @Override
-            public void onTimeout(AsyncEvent event) {
-                cleanup();
-            }
-
-            @Override
-            public void onError(AsyncEvent event) {
-                cleanup();
-            }
-
-            @Override
-            public void onStartAsync(AsyncEvent event) {
-                // no-op
-            }
-
-            private void cleanup() {
-                log.debug("SSE connection closed for user: {}", username);
-                service.unregister(username, connection);
-                connection.close();
-            }
-        });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.debug("SSE connection interrupted for user: {}", username);
+        } finally {
+            log.debug("SSE connection closed for user: {}", username);
+            service.unregister(username, connection);
+            connection.close();
+        }
     }
 }

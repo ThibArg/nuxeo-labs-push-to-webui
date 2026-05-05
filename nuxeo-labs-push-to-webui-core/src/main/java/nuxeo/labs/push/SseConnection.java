@@ -19,79 +19,103 @@
  */
 package nuxeo.labs.push;
 
-import java.io.IOException;
 import java.io.PrintWriter;
-
-import jakarta.servlet.AsyncContext;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Wraps a servlet {@link AsyncContext} as an SSE connection.
+ * Represents an SSE connection to a client.
  * <p>
- * Provides methods to send SSE-formatted data and check connection status.
+ * Uses a {@link BlockingQueue} to receive messages from the service.
+ * The servlet thread blocks on {@link #waitForMessage(long, TimeUnit)} and
+ * writes messages/keepalives to the client's {@link PrintWriter}.
+ * <p>
+ * This approach avoids {@code AsyncContext} which is not supported by
+ * Nuxeo's filter chain.
  *
  * @since 2025.1
  */
 public class SseConnection {
 
-    private final AsyncContext asyncContext;
-
     private final PrintWriter writer;
+
+    private final BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
 
     private volatile boolean closed;
 
-    public SseConnection(AsyncContext asyncContext) throws IOException {
-        this.asyncContext = asyncContext;
-        this.writer = asyncContext.getResponse().getWriter();
+    public SseConnection(PrintWriter writer) {
+        this.writer = writer;
         this.closed = false;
     }
 
     /**
-     * Sends an SSE data event.
+     * Enqueues a message to be sent to the client.
+     * Called by {@link PushNotificationServiceImpl#pushToUser(String, String)}.
      *
      * @param message the message to send
-     * @throws IOException if the connection is closed or writing fails
      */
-    public synchronized void sendEvent(String message) throws IOException {
+    public void enqueueMessage(String message) {
+        if (!closed) {
+            messageQueue.offer(message);
+        }
+    }
+
+    /**
+     * Waits for a message from the queue, with a timeout.
+     *
+     * @param timeout the maximum time to wait
+     * @param unit the time unit
+     * @return the message, or {@code null} if the timeout expired
+     * @throws InterruptedException if the thread is interrupted
+     */
+    public String waitForMessage(long timeout, TimeUnit unit) throws InterruptedException {
+        return messageQueue.poll(timeout, unit);
+    }
+
+    /**
+     * Writes an SSE data event directly to the client.
+     *
+     * @param message the message to send
+     * @return {@code true} if the write succeeded, {@code false} if the client disconnected
+     */
+    public synchronized boolean sendEvent(String message) {
         if (closed) {
-            throw new IOException("Connection is closed");
+            return false;
         }
         writer.write("data: " + message + "\n\n");
         writer.flush();
         if (writer.checkError()) {
             closed = true;
-            throw new IOException("Client disconnected");
+            return false;
         }
+        return true;
     }
 
     /**
-     * Sends an SSE comment (keepalive).
+     * Writes an SSE comment (e.g., keepalive) directly to the client.
      *
-     * @throws IOException if writing fails
+     * @param comment the comment text
+     * @return {@code true} if the write succeeded, {@code false} if the client disconnected
      */
-    public synchronized void sendComment(String comment) throws IOException {
+    public synchronized boolean sendComment(String comment) {
         if (closed) {
-            throw new IOException("Connection is closed");
+            return false;
         }
         writer.write(": " + comment + "\n\n");
         writer.flush();
         if (writer.checkError()) {
             closed = true;
-            throw new IOException("Client disconnected");
+            return false;
         }
+        return true;
     }
 
     /**
-     * Closes this SSE connection.
+     * Marks this connection as closed.
      */
-    public synchronized void close() {
-        if (!closed) {
-            closed = true;
-            try {
-                asyncContext.complete();
-            } catch (IllegalStateException e) {
-                // already completed
-            }
-        }
+    public void close() {
+        closed = true;
     }
 
     public boolean isClosed() {

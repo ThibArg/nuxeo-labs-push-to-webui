@@ -19,14 +19,10 @@
  */
 package nuxeo.labs.push;
 
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,7 +32,8 @@ import org.nuxeo.runtime.model.DefaultComponent;
  * Implementation of {@link PushNotificationService}.
  * <p>
  * Manages SSE connections per user using a {@link ConcurrentHashMap}.
- * Sends keepalive comments every 30 seconds to prevent proxy timeouts.
+ * Messages are enqueued on each connection's blocking queue; the servlet
+ * thread handles writing and keepalives.
  *
  * @since 2025.1
  */
@@ -44,33 +41,13 @@ public class PushNotificationServiceImpl extends DefaultComponent implements Pus
 
     private static final Logger log = LogManager.getLogger(PushNotificationServiceImpl.class);
 
-    private static final long KEEPALIVE_INTERVAL_SECONDS = 30;
-
     /**
      * Maps username to the set of active SSE connections for that user.
      */
     private final Map<String, Set<SseConnection>> connections = new ConcurrentHashMap<>();
 
-    private ScheduledExecutorService keepaliveExecutor;
-
-    @Override
-    public void start(org.nuxeo.runtime.model.ComponentContext context) {
-        keepaliveExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "push-notification-keepalive");
-            t.setDaemon(true);
-            return t;
-        });
-        keepaliveExecutor.scheduleAtFixedRate(this::sendKeepalives, KEEPALIVE_INTERVAL_SECONDS,
-                KEEPALIVE_INTERVAL_SECONDS, TimeUnit.SECONDS);
-        log.info("PushNotificationService started");
-    }
-
     @Override
     public void stop(org.nuxeo.runtime.model.ComponentContext context) throws InterruptedException {
-        if (keepaliveExecutor != null) {
-            keepaliveExecutor.shutdownNow();
-            keepaliveExecutor = null;
-        }
         // Close all connections
         connections.forEach((username, conns) -> conns.forEach(SseConnection::close));
         connections.clear();
@@ -105,36 +82,11 @@ public class PushNotificationServiceImpl extends DefaultComponent implements Pus
         Iterator<SseConnection> it = conns.iterator();
         while (it.hasNext()) {
             SseConnection conn = it.next();
-            try {
-                conn.sendEvent(message);
-            } catch (IOException e) {
-                log.debug("Removing failed SSE connection for user: {}", username);
+            if (conn.isClosed()) {
                 it.remove();
-                conn.close();
+            } else {
+                conn.enqueueMessage(message);
             }
         }
-    }
-
-    /**
-     * Sends keepalive comments to all active connections.
-     * Cleans up dead connections.
-     */
-    private void sendKeepalives() {
-        connections.forEach((username, conns) -> {
-            Iterator<SseConnection> it = conns.iterator();
-            while (it.hasNext()) {
-                SseConnection conn = it.next();
-                try {
-                    conn.sendComment("keepalive");
-                } catch (IOException e) {
-                    log.debug("Removing dead SSE connection for user: {} during keepalive", username);
-                    it.remove();
-                    conn.close();
-                }
-            }
-            if (conns.isEmpty()) {
-                connections.remove(username, conns);
-            }
-        });
     }
 }

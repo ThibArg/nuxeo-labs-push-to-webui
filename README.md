@@ -91,6 +91,50 @@ pushService.pushToUser(username, "Your import is complete!");
     username: "jdoe"
 ```
 
+## Customizing the Listener
+
+The `<nuxeo-labs-push-listener>` element is registered in the `DOCUMENT_ACTIONS` slot via a `<nuxeo-slot-content>` contribution. You can override this contribution in your Nuxeo Studio project to control where and when the listener is active.
+
+The default contribution is:
+
+```html
+<nuxeo-slot-content name="pushNotificationListener" slot="DOCUMENT_ACTIONS" order="999">
+  <template>
+    <nuxeo-labs-push-listener></nuxeo-labs-push-listener>
+  </template>
+</nuxeo-slot-content>
+```
+
+To customize it, copy this into your Studio project's custom bundle and adjust as needed.
+
+> [!IMPORTANT]
+> Do not change the `name="pushNotificationListener"` attribute. Nuxeo's slot system merges contributions by name — using the same name ensures your contribution **overrides** the default one. If you use a different name, both contributions will be active and the listener will be instantiated twice.
+
+**Examples:**
+
+Restrict push notifications to administrators only:
+
+```html
+<nuxeo-slot-content name="pushNotificationListener" slot="DOCUMENT_ACTIONS" order="999">
+  <template>
+    <nuxeo-filter user="[[user]]" group="administrators">
+      <template>
+        <nuxeo-labs-push-listener></nuxeo-labs-push-listener>
+      </template>
+    </nuxeo-filter>
+  </template>
+</nuxeo-slot-content>
+```
+
+Restrict to specific groups:
+
+```html
+<nuxeo-filter user="[[user]]" group="managers,powerusers">
+```
+
+> [!NOTE]
+> If the listener is filtered out for a user, that user will **not** receive push notifications. No SSE connection will be opened, and messages sent to that user via `Event.PushToWebUI` will be silently dropped.
+
 ## Use with nuxeo-labs-baf-notification
 
 This plugin works well in combination with [nuxeo-labs-baf-notification](https://github.com/nuxeo-sandbox/nuxeo-labs-baf-notification), which fires a `bulkActionDone` Nuxeo event whenever a Bulk Action Framework (BAF) command completes or aborts.
@@ -219,6 +263,33 @@ In both cases, the user who started the bulk action will see a toast notificatio
 | **Parameters** | `message` (String, required) — the message to push |
 | | `username` (String, optional) — target user, defaults to current user |
 | **Output** | void |
+
+## Technical Notes
+
+### Threading Model
+
+The SSE endpoint requires a long-lived HTTP connection between the browser and the server. Ideally, this would use an async servlet (`AsyncContext`) to avoid blocking a thread per connection. However, Nuxeo's servlet filter chain (authentication, CORS, request controller, etc.) does not declare `<async-supported>true</async-supported>`, which is required for async servlets in the Jakarta Servlet specification.
+
+This is a Nuxeo platform constraint — none of the built-in filters support async mode, and a plugin cannot modify them. Nuxeo's own internal SSE endpoint (`StreamServlet`, used for admin stream tailing) works around this by blocking the servlet thread.
+
+This plugin follows the same pattern: **one servlet thread is blocked per connected SSE client** for the duration of the connection. The thread waits on a blocking queue for messages to send and periodically sends keepalive comments to detect disconnected clients.
+
+### Performance Implications
+
+| Aspect | Impact |
+|---|---|
+| **Threads per user** | 1 blocked Tomcat thread per connected Web UI tab |
+| **Practical limit** | ~100-150 concurrent users per Nuxeo node (Tomcat default: 200 threads) |
+| **Message latency** | Immediate — the thread wakes up as soon as a message is enqueued |
+| **Memory overhead** | ~1 MB per connection (thread stack), negligible |
+
+For typical deployments with a few dozen concurrent Web UI users, this has no measurable impact. For large deployments with 100+ concurrent users on a single node, you may need to increase Tomcat's `maxThreads` in `server.xml`.
+
+### Auto-Reconnect
+
+The browser's `EventSource` API automatically reconnects if the SSE connection drops (network issue, server restart, proxy timeout, etc.). This is transparent to the user — the listener element simply re-establishes the connection and resumes receiving notifications.
+
+Keepalive comments (`: keepalive`) are sent every 30 seconds to prevent intermediate proxies and load balancers from closing idle connections.
 
 ## How to Build and Deploy
 

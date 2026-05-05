@@ -35,6 +35,7 @@ Contributors:
         display: none;
       }
     </style>
+
   </template>
 
   <script>
@@ -42,6 +43,10 @@ Contributors:
       is: 'nuxeo-labs-push-listener',
 
       properties: {
+        // If the element is used out of the context of an element,
+        // this stays undefined and it is fine
+        document: Object,
+
         /**
          * The EventSource connection to the SSE endpoint.
          * @private
@@ -105,19 +110,58 @@ Contributors:
           console.log('[nuxeo-labs-push-listener] SSE connection closed.');
         }
       },
+      
+      // Utility when handling the event
+      _isCurrentDocument: function(id) {
+
+        if(!this.document) {
+          return false;
+        }
+
+        return this.document.uid === id;
+      },
 
       /**
        * Dispatches a notify event to display a toast notification.
        * This is compatible with the standard Web UI NotifyBehavior.
        */
       _showNotification: function(message) {
-        this.dispatchEvent(new CustomEvent('notify', {
-          bubbles: true,
-          composed: true,
-          detail: {
-            message: message
-          }
-        }));
+        try {
+          var messageJson = JSON.parse(message);
+        } catch (e) {
+          // Not JSON — display as a plain toast (backward compatible)
+          this.dispatchEvent(new CustomEvent('notify', {
+            bubbles: true, composed: true,
+            detail: { message: message }
+          }));
+          return;
+        }
+
+        // Here, put your custom handlin. See README at https://github.com/nuxeo-sandbox/nuxeo-labs-push-to-webui
+        // For example:
+        /*
+        switch (messageJson.action) {
+          // Event Handler listens to videoConversionsDone and the linked chain sends the following JSON in the message:
+          // {
+          //   "action": "VideoConversionsDone",
+          //   "docId": input.id,
+          //   "docPath": input.path
+          // };
+          case "VideoConversionsDone":
+            if(this._isCurrentDocument(messageJson.docId)) {
+              this.fire("document-updated", { docId: messageJson.docId });
+            }
+            break;
+            
+          default:
+            this.dispatchEvent(new CustomEvent('notify', {
+              bubbles: true, composed: true,
+              detail: { message: message }
+            }));
+            break;
+        }
+        */
+
       }
     });
   </script>

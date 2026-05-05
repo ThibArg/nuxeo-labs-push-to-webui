@@ -100,10 +100,12 @@ The default contribution is:
 ```html
 <nuxeo-slot-content name="pushNotificationListener" slot="DOCUMENT_ACTIONS" order="999">
   <template>
-    <nuxeo-labs-push-listener></nuxeo-labs-push-listener>
+    <nuxeo-labs-push-listener document="[[document]]"></nuxeo-labs-push-listener>
   </template>
 </nuxeo-slot-content>
 ```
+
+The slot contribution passes the currently displayed document as `[[document]]`, making it available inside the element as `this.document`. This allows the `onmessage` callback to check context — for example, whether the user is currently viewing the document that was just updated. When the user is on a page with no current document (home page, analytics, search results, etc.), `this.document` is simply `undefined` — this is fine, the built-in `_isCurrentDocument()` helper returns `false` in that case.
 
 To customize it, copy this into your Studio project's custom bundle and adjust as needed.
 
@@ -119,7 +121,7 @@ Restrict push notifications to administrators only:
   <template>
     <nuxeo-filter user="[[user]]" group="administrators">
       <template>
-        <nuxeo-labs-push-listener></nuxeo-labs-push-listener>
+        <nuxeo-labs-push-listener document="[[document]]"></nuxeo-labs-push-listener>
       </template>
     </nuxeo-filter>
   </template>
@@ -194,8 +196,8 @@ _showNotification: function(rawMessage) {
       break;
 
     case 'videoConversion':
-      // If the user is viewing this document, refresh the page
-      if (this._isViewingDocument(data.documentId)) {
+      // If the user is viewing this document, refresh its metadata
+      if (this._isCurrentDocument(data.documentId)) {
         this.fire('document-updated');
       } else {
         this.dispatchEvent(new CustomEvent('notify', {
@@ -220,7 +222,7 @@ _showNotification: function(rawMessage) {
 | JSON Message | Client Behavior |
 |---|---|
 | `{"action": "importDone", "duration": "10mn32"}` | Show a toast or dialog with import duration |
-| `{"action": "videoConversion", "documentId": "123456-abcd-..."}` | If the user is viewing that document, refresh its metadata to show the new renditions; otherwise show a toast |
+| `{"action": "videoConversion", "documentId": "123456-abcd-..."}` | If the user is still viewing that document, refresh its metadata; otherwise show a toast (e.g., user uploaded a video and navigated elsewhere before conversion completed) |
 | `{"action": "workflowStarted", "taskId": "..."}` | Navigate the user to their task dashboard |
 | `Plain text message` | Fallback: display as a standard toast notification |
 

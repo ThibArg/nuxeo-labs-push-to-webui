@@ -130,12 +130,9 @@ function run(input, params) {
     message = "Bulk action '" + action + "' was aborted";
   }
 
-  var pushOp = Context.RunOperation(null, {
-    "id": "Event.PushToWebUI",
-    "parameters": {
-      "message": message,
-      "username": username
-    }
+  Event.PushToWebUI(null, {
+    'message': message,
+    'username': username
   });
 
   return input;

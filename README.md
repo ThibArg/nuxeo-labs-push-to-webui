@@ -196,7 +196,7 @@ _showNotification: function(rawMessage) {
     case 'videoConversion':
       // If the user is viewing this document, refresh the page
       if (this._isViewingDocument(data.documentId)) {
-        window.location.reload();
+        this.fire('document-updated');
       } else {
         this.dispatchEvent(new CustomEvent('notify', {
           bubbles: true, composed: true,
@@ -220,7 +220,7 @@ _showNotification: function(rawMessage) {
 | JSON Message | Client Behavior |
 |---|---|
 | `{"action": "importDone", "duration": "10mn32"}` | Show a toast or dialog with import duration |
-| `{"action": "videoConversion", "documentId": "123456-abcd-..."}` | If the user is viewing that document, refresh the page to show the new renditions; otherwise show a toast |
+| `{"action": "videoConversion", "documentId": "123456-abcd-..."}` | If the user is viewing that document, refresh its metadata to show the new renditions; otherwise show a toast |
 | `{"action": "workflowStarted", "taskId": "..."}` | Navigate the user to their task dashboard |
 | `Plain text message` | Fallback: display as a standard toast notification |
 

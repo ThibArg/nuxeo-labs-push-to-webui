@@ -141,7 +141,7 @@ nuxeoctl mp-install nuxeo-labs-push-to-webui-package-2025.1.0-SNAPSHOT.zip
 This plugin will be available as a package on the [Nuxeo Marketplace](https://connect.nuxeo.com/nuxeo/site/marketplace), you can just:
 
 ```bash
-nuxeoctl mp-install 
+nuxeoctl mp-install nuxeo-labs-push-to-webui
 
 ```
 

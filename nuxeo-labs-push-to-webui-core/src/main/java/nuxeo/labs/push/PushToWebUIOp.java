@@ -15,6 +15,7 @@
  *
  * Contributors:
  *     Thibaud Arguillere
+ *     (Code initially generated with the help of opencode / Claude Opus)
  */
 package nuxeo.labs.push;
 

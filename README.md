@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-Server-side push notifications to Nuxeo Web UI (LTS 2025) via Server-Sent Events (SSE). Instead of polling, server-side code pushes messages directly to the user's browser, displayed as toast notifications.
+Server-side push notifications to Nuxeo Web UI (LTS 2025) via [Server-Sent Events (SSE)](https://en.wikipedia.org/wiki/Server-sent_events). Instead of polling, server-side code pushes messages directly to the user's browser, displayed as toast notifications.
 
 > [!NOTE]
 > This is Work In Progress - Not ready for use

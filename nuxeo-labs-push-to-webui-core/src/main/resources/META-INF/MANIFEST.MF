@@ -1,0 +1,9 @@
+Bundle-ActivationPolicy: lazy
+Bundle-ClassPath: .
+Manifest-Version: 1.0
+Bundle-Vendor: nuxeo.labs.push
+Bundle-Version: 1.0.0
+Bundle-Name: nuxeo-labs-push-to-webui-core
+Bundle-ManifestVersion: 2
+Bundle-SymbolicName: nuxeo.labs.push.nuxeo-labs-push-to-webui-core;singleton=true
+Nuxeo-Component: OSGI-INF/push-service-contrib.xml,OSGI-INF/push-operation-contrib.xml,OSGI-INF/push-webui-contrib.xml

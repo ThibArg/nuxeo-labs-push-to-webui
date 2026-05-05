@@ -1,0 +1,124 @@
+<!--
+(C) Copyright 2025 Hyland (http://hyland.com/) and others.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Contributors:
+    Thibaud Arguillere
+-->
+
+<!--
+  nuxeo-labs-push-listener
+
+  A hidden Polymer 2 element that opens an SSE connection to the Nuxeo server
+  and displays incoming push notifications as toast messages using the standard
+  Web UI notification mechanism (NotifyBehavior-compatible events).
+
+  This element has no visible UI. It is registered in a slot via the contrib HTML
+  so it is always present when the user is logged in.
+-->
+
+<dom-module id="nuxeo-labs-push-listener">
+  <template>
+    <style>
+      :host {
+        display: none;
+      }
+    </style>
+  </template>
+
+  <script>
+    Polymer({
+      is: 'nuxeo-labs-push-listener',
+
+      properties: {
+        /**
+         * The EventSource connection to the SSE endpoint.
+         * @private
+         */
+        _eventSource: {
+          type: Object,
+          value: null
+        }
+      },
+
+      attached: function() {
+        this._connect();
+      },
+
+      detached: function() {
+        this._disconnect();
+      },
+
+      /**
+       * Opens the SSE connection to the push notification endpoint.
+       */
+      _connect: function() {
+        if (this._eventSource) {
+          return;
+        }
+
+        var baseUrl = document.querySelector('nuxeo-app')
+          ? document.querySelector('nuxeo-app').url || ''
+          : '';
+        // Default to /nuxeo if we cannot resolve the base URL
+        if (!baseUrl) {
+          baseUrl = '/nuxeo';
+        }
+        var url = baseUrl + '/push/subscribe';
+
+        console.log('[nuxeo-labs-push-listener] Connecting to SSE endpoint:', url);
+
+        this._eventSource = new EventSource(url);
+
+        this._eventSource.onmessage = function(event) {
+          console.log('[nuxeo-labs-push-listener] Received push notification:', event.data);
+          this._showNotification(event.data);
+        }.bind(this);
+
+        this._eventSource.onerror = function() {
+          console.warn('[nuxeo-labs-push-listener] SSE connection error. EventSource will auto-reconnect.');
+        };
+
+        this._eventSource.onopen = function() {
+          console.log('[nuxeo-labs-push-listener] SSE connection established.');
+        };
+      },
+
+      /**
+       * Closes the SSE connection.
+       */
+      _disconnect: function() {
+        if (this._eventSource) {
+          this._eventSource.close();
+          this._eventSource = null;
+          console.log('[nuxeo-labs-push-listener] SSE connection closed.');
+        }
+      },
+
+      /**
+       * Dispatches a notify event to display a toast notification.
+       * This is compatible with the standard Web UI NotifyBehavior.
+       */
+      _showNotification: function(message) {
+        this.dispatchEvent(new CustomEvent('notify', {
+          bubbles: true,
+          composed: true,
+          detail: {
+            message: message
+          }
+        }));
+      }
+    });
+  </script>
+</dom-module>

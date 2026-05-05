@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<component name="nuxeo.labs.push.PushNotificationService" version="1.0">
+
+  <implementation class="nuxeo.labs.push.PushNotificationServiceImpl" />
+
+  <service>
+    <provide interface="nuxeo.labs.push.PushNotificationService" />
+  </service>
+
+</component>

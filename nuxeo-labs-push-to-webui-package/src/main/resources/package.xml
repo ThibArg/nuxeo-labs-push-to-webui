@@ -1,0 +1,25 @@
+<!-- See documentation at http://doc.nuxeo.com/x/HgIz -->
+<package type="addon" name="nuxeo-labs-push-to-webui" version="@VERSION@">
+  <title>Nuxeo Labs Push to Web UI</title>
+  <description>
+    <p>Server-side push notifications to Nuxeo Web UI via Server-Sent Events (SSE).
+    Enables server-side code to push toast notifications directly to the user's browser
+    without polling.</p>
+  </description>
+  <vendor>Hyland</vendor>
+  <installer restart="true" />
+  <uninstaller restart="true" />
+  <nuxeo-validation>none</nuxeo-validation>
+  <production-state>testing</production-state>
+  <supported>false</supported>
+  <target-platform>
+    <name>lts</name>
+    <version>[@NUXEO_TARGET_VERSION@,)</version>
+  </target-platform>
+  <dependencies>
+    <package>nuxeo-web-ui</package>
+  </dependencies>
+  <license>Apache License, Version 2.0</license>
+  <license-url>http://www.apache.org/licenses/LICENSE-2.0</license-url>
+  <visibility>DEV</visibility>
+</package>

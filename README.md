@@ -17,7 +17,7 @@ The plugin provides:
 
 - A **Java service** (`PushNotificationService`) that manages SSE connections per user
 - An **HTTP servlet** that serves as the SSE endpoint (`/nuxeo/push/subscribe`)
-- An **Automation operation** (`Push.Notification`) for use in Automation chains and scripts
+- An **Automation operation** (`Event.PushToWebUI`) for use in Automation chains and scripts
 - A **Web UI element** (`<nuxeo-labs-push-listener>`) that receives SSE events and displays them as toast notifications
 
 ## Architecture
@@ -32,7 +32,7 @@ Browser (Web UI)                    Nuxeo Server
 | on message -> toast  |           | PushNotificationService      |
 |                      |           |  .pushToUser(user, message)  |
 +----------------------+           |                              |
-                                   | Push.Notification (Op)       |
+                                   | Event.PushToWebUI (Op)       |
                                    |  calls service from chains   |
                                    +------------------------------+
 ```
@@ -59,7 +59,7 @@ Browser (Web UI)                    Nuxeo Server
 ### Targeting
 
 - Notifications are **per user**: all tabs/sessions of a user receive the message
-- The `username` parameter on `Push.Notification` defaults to the current user
+- The `username` parameter on `Event.PushToWebUI` defaults to the current user
 - In async event listeners, `coreSession.getPrincipal().getName()` gives the originating user
 
 ## Usage
@@ -79,14 +79,14 @@ pushService.pushToUser(username, "Your import is complete!");
 ### From an Automation Chain
 
 ```yaml
-- Push.Notification:
+- Event.PushToWebUI:
     message: "Your export is ready!"
 ```
 
 ### From an Automation Chain (targeting a specific user)
 
 ```yaml
-- Push.Notification:
+- Event.PushToWebUI:
     message: "A document was shared with you"
     username: "jdoe"
 ```
@@ -106,7 +106,7 @@ This is the easiest approach — no Java code required:
 
 1. **Register the event in Studio**: Add `bulkActionDone` to the Studio Registry under "Core Events" so Studio recognizes it as a valid event name.
 2. **Create an Event Handler**: In Studio Modeler, create an Event Handler that listens for the `bulkActionDone` event.
-3. **Link a JavaScript Automation chain**: JavaScript Automation makes it easy to extract the event context properties and call the `Push.Notification` operation.
+3. **Link a JavaScript Automation chain**: JavaScript Automation makes it easy to extract the event context properties and call the `Event.PushToWebUI` operation.
 
 **Example JavaScript Automation chain:**
 
@@ -131,7 +131,7 @@ function run(input, params) {
   }
 
   var pushOp = Context.RunOperation(null, {
-    "id": "Push.Notification",
+    "id": "Event.PushToWebUI",
     "parameters": {
       "message": message,
       "username": username
@@ -212,11 +212,11 @@ In both cases, the user who started the bulk action will see a toast notificatio
 | `unregister(username, connection)` | Removes a connection |
 | `pushToUser(username, message)` | Sends a message to all active connections of a user |
 
-### Automation Operation: `Push.Notification`
+### Automation Operation: `Event.PushToWebUI`
 
 | | |
 |---|---|
-| **ID** | `Push.Notification` |
+| **ID** | `Event.PushToWebUI` |
 | **Category** | Notification |
 | **Input** | None |
 | **Parameters** | `message` (String, required) — the message to push |

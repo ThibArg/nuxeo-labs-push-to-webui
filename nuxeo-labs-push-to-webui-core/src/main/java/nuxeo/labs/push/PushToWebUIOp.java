@@ -19,6 +19,7 @@
 package nuxeo.labs.push;
 
 import org.apache.commons.lang3.StringUtils;
+import org.nuxeo.ecm.automation.core.Constants;
 import org.nuxeo.ecm.automation.core.annotations.Context;
 import org.nuxeo.ecm.automation.core.annotations.Operation;
 import org.nuxeo.ecm.automation.core.annotations.OperationMethod;
@@ -34,16 +35,16 @@ import org.nuxeo.runtime.api.Framework;
  * <p>
  * Example usage in an Automation chain:
  * <pre>
- * - Push.Notification:
+ * - Event.PushToWebUI:
  *     message: "Your import is complete!"
  * </pre>
  *
  * @since 2025.1
  */
-@Operation(id = PushNotificationOp.ID, category = "Notification", label = "Push Notification", description = "Sends a push notification to a user's Web UI sessions via SSE.")
-public class PushNotificationOp {
+@Operation(id = PushToWebUIOp.ID, category = Constants.CAT_NOTIFICATION, label = "Push To Web UI", description = "Sends a push notification to a user's Web UI sessions via SSE.")
+public class PushToWebUIOp {
 
-    public static final String ID = "Push.Notification";
+    public static final String ID = "Event.PushToWebUI";
 
     @Context
     protected CoreSession session;

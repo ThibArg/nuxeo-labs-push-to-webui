@@ -2,7 +2,7 @@
 <component name="nuxeo.labs.push.operations">
 
   <extension point="operations" target="org.nuxeo.ecm.core.operation.OperationServiceComponent">
-    <operation class="nuxeo.labs.push.PushNotificationOp"/>
+    <operation class="nuxeo.labs.push.PushToWebUIOp"/>
   </extension>
 
 </component>

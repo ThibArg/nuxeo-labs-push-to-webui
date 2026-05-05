@@ -91,6 +91,117 @@ pushService.pushToUser(username, "Your import is complete!");
     username: "jdoe"
 ```
 
+## Use with nuxeo-labs-baf-notification
+
+This plugin works well in combination with [nuxeo-labs-baf-notification](https://github.com/nuxeo-sandbox/nuxeo-labs-baf-notification), which fires a `bulkActionDone` Nuxeo event whenever a Bulk Action Framework (BAF) command completes or aborts.
+
+By installing both plugins, you can react to bulk action completion and push a notification to the user who started the action — no polling required.
+
+> [!NOTE]
+> The `bulkActionDone` event fires for **all** bulk actions. Filter by the `action` property if you only want to notify for specific actions.
+
+### Using Nuxeo Studio (no custom Java code)
+
+This is the easiest approach — no Java code required:
+
+1. **Register the event in Studio**: Add `bulkActionDone` to the Studio Registry under "Core Events" so Studio recognizes it as a valid event name.
+2. **Create an Event Handler**: In Studio Modeler, create an Event Handler that listens for the `bulkActionDone` event.
+3. **Link a JavaScript Automation chain**: JavaScript Automation makes it easy to extract the event context properties and call the `Push.Notification` operation.
+
+**Example JavaScript Automation chain:**
+
+```javascript
+function run(input, params) {
+  var eventCtx = ctx.Event.context;
+  var username = eventCtx.getProperty("username");
+  var action = eventCtx.getProperty("action");
+  var state = eventCtx.getProperty("state");
+  var processed = eventCtx.getProperty("processed");
+  var errorCount = eventCtx.getProperty("errorCount");
+
+  var message;
+  if (state === "COMPLETED") {
+    if (errorCount > 0) {
+      message = "Bulk action '" + action + "' completed: " + processed + " documents processed, " + errorCount + " errors";
+    } else {
+      message = "Bulk action '" + action + "' completed: " + processed + " documents processed";
+    }
+  } else {
+    message = "Bulk action '" + action + "' was aborted";
+  }
+
+  var pushOp = Context.RunOperation(null, {
+    "id": "Push.Notification",
+    "parameters": {
+      "message": message,
+      "username": username
+    }
+  });
+
+  return input;
+}
+```
+
+### Using a Java Event Listener
+
+Alternatively, you can write a Java event listener in a custom plugin:
+
+**1. Create the listener:**
+
+```java
+package com.example;
+
+import org.nuxeo.ecm.core.event.Event;
+import org.nuxeo.ecm.core.event.EventListener;
+import org.nuxeo.runtime.api.Framework;
+
+import nuxeo.labs.push.PushNotificationService;
+
+public class BulkActionPushListener implements EventListener {
+
+    @Override
+    public void handleEvent(Event event) {
+        var ctx = event.getContext();
+        var username = (String) ctx.getProperty("username");
+        var action = (String) ctx.getProperty("action");
+        var state = (String) ctx.getProperty("state");
+        var processed = (long) ctx.getProperty("processed");
+        var errorCount = (long) ctx.getProperty("errorCount");
+
+        String message;
+        if ("COMPLETED".equals(state)) {
+            if (errorCount > 0) {
+                message = String.format("Bulk action '%s' completed: %d documents processed, %d errors",
+                        action, processed, errorCount);
+            } else {
+                message = String.format("Bulk action '%s' completed: %d documents processed",
+                        action, processed);
+            }
+        } else {
+            message = String.format("Bulk action '%s' was aborted", action);
+        }
+
+        Framework.getService(PushNotificationService.class).pushToUser(username, message);
+    }
+}
+```
+
+**2. Register the listener:**
+
+```xml
+<?xml version="1.0"?>
+<component name="com.example.bulk-action-push-listener">
+  <extension target="org.nuxeo.ecm.core.event.EventServiceComponent" point="listener">
+    <listener name="bulkActionPushListener"
+        class="com.example.BulkActionPushListener">
+      <event>bulkActionDone</event>
+    </listener>
+  </extension>
+</component>
+```
+
+In both cases, the user who started the bulk action will see a toast notification in their browser as soon as the action completes.
+
 ## Server-Side API
 
 ### PushNotificationService

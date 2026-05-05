@@ -135,6 +135,98 @@ Restrict to specific groups:
 > [!NOTE]
 > If the listener is filtered out for a user, that user will **not** receive push notifications. No SSE connection will be opened, and messages sent to that user via `Event.PushToWebUI` will be silently dropped.
 
+## Advanced: Custom Message Handling
+
+The `message` parameter in `Event.PushToWebUI` is just a string. While the default element displays it as a toast, nothing prevents you from sending a JSON string and handling it with custom logic on the client side.
+
+### Server-Side: Send JSON Messages
+
+From an Automation chain:
+
+```yaml
+- Event.PushToWebUI:
+    message: '{"action": "importDone", "duration": "10mn32"}'
+```
+
+```yaml
+- Event.PushToWebUI:
+    message: '{"action": "videoConversion", "documentId": "123456-abcd-..."}'
+```
+
+Or from Java:
+
+```java
+pushService.pushToUser(username, "{\"action\": \"importDone\", \"duration\": \"10mn32\"}");
+```
+
+### Client-Side: Override the Element
+
+To handle structured messages, override `nuxeo-labs-push-listener.html` in Nuxeo Studio Designer:
+
+1. In **Designer > Resources**, create a folder named `nuxeo-labs-push-listener/`
+2. Copy the original `nuxeo-labs-push-listener.html` into it
+3. Modify the `_showNotification` method to parse JSON and act accordingly
+
+**Example: Custom `_showNotification` with JSON support:**
+
+```javascript
+_showNotification: function(rawMessage) {
+  var data;
+  try {
+    data = JSON.parse(rawMessage);
+  } catch (e) {
+    // Not JSON — display as a plain toast (backward compatible)
+    this.dispatchEvent(new CustomEvent('notify', {
+      bubbles: true, composed: true,
+      detail: { message: rawMessage }
+    }));
+    return;
+  }
+
+  // Handle structured messages based on action
+  switch (data.action) {
+    case 'importDone':
+      // Show a detailed toast with duration
+      this.dispatchEvent(new CustomEvent('notify', {
+        bubbles: true, composed: true,
+        detail: { message: 'Import completed in ' + data.duration }
+      }));
+      break;
+
+    case 'videoConversion':
+      // If the user is viewing this document, refresh the page
+      if (this._isViewingDocument(data.documentId)) {
+        window.location.reload();
+      } else {
+        this.dispatchEvent(new CustomEvent('notify', {
+          bubbles: true, composed: true,
+          detail: { message: 'Video conversion complete' }
+        }));
+      }
+      break;
+
+    default:
+      // Unknown action — show raw message as toast
+      this.dispatchEvent(new CustomEvent('notify', {
+        bubbles: true, composed: true,
+        detail: { message: rawMessage }
+      }));
+  }
+}
+```
+
+### Use Case Examples
+
+| JSON Message | Client Behavior |
+|---|---|
+| `{"action": "importDone", "duration": "10mn32"}` | Show a toast or dialog with import duration |
+| `{"action": "videoConversion", "documentId": "123456-abcd-..."}` | If the user is viewing that document, refresh the page to show the new renditions; otherwise show a toast |
+| `{"action": "workflowStarted", "taskId": "..."}` | Navigate the user to their task dashboard |
+| `Plain text message` | Fallback: display as a standard toast notification |
+
+> [!NOTE]
+> The `try/catch` around `JSON.parse()` ensures backward compatibility — plain text messages (from other callers or simpler use cases) are still displayed as standard toasts.
+
 ## Use with nuxeo-labs-baf-notification
 
 This plugin works well in combination with [nuxeo-labs-baf-notification](https://github.com/nuxeo-sandbox/nuxeo-labs-baf-notification), which fires a `bulkActionDone` Nuxeo event whenever a Bulk Action Framework (BAF) command completes or aborts.

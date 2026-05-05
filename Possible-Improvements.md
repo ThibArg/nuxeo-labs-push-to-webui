@@ -20,14 +20,16 @@ Currently there is no limit on the number of SSE connections per user. If a user
 
 ## Structured Message Payload
 
-Currently, messages are plain text strings displayed as toast notifications. A future version could support structured JSON payloads, allowing the front-end to handle different message types differently — for example:
+Currently, messages are plain text strings displayed as toast notifications. A future version could support structured JSON payloads natively in the plugin, allowing the front-end to handle different message types differently — for example:
 
 - Display a toast with a link to a document
 - Refresh the current view
 - Trigger a navigation
 - Show different severity levels (info, warning, error)
 
-This would require changes to both the service API and the Web UI element.
+> **Note:** This can already be achieved today by sending JSON strings as the message and overriding the `nuxeo-labs-push-listener.html` element in Studio Designer. See the "Advanced: Custom Message Handling" section in the README for details and examples.
+
+A future version could build this into the plugin natively, with a standard JSON schema and built-in handling for common actions, so users don't need to override the element.
 
 ## Message History / Missed Messages
 

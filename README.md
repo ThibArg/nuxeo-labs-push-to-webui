@@ -125,14 +125,26 @@ mvn clean install
 To skip unit testing, add `-DskipTests`.
 
 The Marketplace package is generated at:
+
 ```
 nuxeo-labs-push-to-webui-package/target/nuxeo-labs-push-to-webui-package-*.zip
 ```
 
 Install it via `nuxeoctl`:
+
 ```bash
 nuxeoctl mp-install nuxeo-labs-push-to-webui-package-2025.1.0-SNAPSHOT.zip
 ```
+
+### Deploy from Nuxeo Marketplace
+
+This plugin will be available as a package on the [Nuxeo Marketplace](https://connect.nuxeo.com/nuxeo/site/marketplace), you can just:
+
+```bash
+nuxeoctl mp-install 
+
+```
+
 
 ## Support
 

@@ -4,6 +4,9 @@
 
 Server-side push notifications to Nuxeo Web UI (LTS 2025) via [Server-Sent Events (SSE)](https://en.wikipedia.org/wiki/Server-sent_events). Instead of polling, server-side code pushes messages directly to the user's browser, displayed as toast notifications.
 
+> [!CAUTION]
+> Due to Nuxeo platform constraints, each SSE connection **blocks one Tomcat servlet thread** for its entire lifetime — one thread per browser tab per user. This may not be suitable for deployments with a large number of concurrent Web UI users. See [Threading Model](#threading-model) for details and [Customizing the Listener](#customizing-the-listener) for ways to restrict which users or contexts activate the listener.
+
 > [!NOTE]
 > This is Work In Progress - Not ready for use
 
@@ -377,7 +380,9 @@ This plugin follows the same pattern: **one servlet thread is blocked per connec
 | **Message latency** | Immediate — the thread wakes up as soon as a message is enqueued |
 | **Memory overhead** | ~1 MB per connection (thread stack), negligible |
 
-For typical deployments with a few dozen concurrent Web UI users, this has no measurable impact. For large deployments with 100+ concurrent users on a single node, you may need to increase Tomcat's `maxThreads` in `server.xml`.
+For typical deployments with a few dozen concurrent Web UI users, this has no measurable impact. For example, a single user with 5 open Web UI tabs consumes 5 Tomcat threads for the duration of those sessions. With 20 such users, that's 100 threads — half of Tomcat's default pool of 200. For large deployments with 100+ concurrent users on a single node, you may need to increase Tomcat's `maxThreads` in `server.xml`.
+
+To reduce thread usage, you can use a `<nuxeo-filter>` in the slot contribution to restrict the listener to specific user groups or contexts — see [Customizing the Listener](#customizing-the-listener). Users excluded by the filter will not open an SSE connection and will not consume a thread.
 
 ### Auto-Reconnect
 

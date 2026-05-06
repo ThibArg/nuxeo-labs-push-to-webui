@@ -58,8 +58,8 @@ public class PushToWebUIOp {
 
     @OperationMethod
     public void run() {
-        String targetUser = StringUtils.isNotBlank(username) ? username : session.getPrincipal().getName();
-        PushNotificationService service = Framework.getService(PushNotificationService.class);
+        var targetUser = StringUtils.isNotBlank(username) ? username : session.getPrincipal().getName();
+        var service = Framework.getService(PushNotificationService.class);
         service.pushToUser(targetUser, message);
     }
 }

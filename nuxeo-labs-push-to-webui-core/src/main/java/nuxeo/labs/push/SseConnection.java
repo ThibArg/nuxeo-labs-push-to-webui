@@ -38,11 +38,11 @@ import java.util.concurrent.TimeUnit;
  */
 public class SseConnection {
 
-    private final PrintWriter writer;
+    protected final PrintWriter writer;
 
-    private final BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
+    protected final BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
 
-    private volatile boolean closed;
+    protected volatile boolean closed;
 
     public SseConnection(PrintWriter writer) {
         this.writer = writer;
@@ -112,12 +112,20 @@ public class SseConnection {
     }
 
     /**
-     * Marks this connection as closed.
+     * Marks this connection as closed. Subsequent writes will be no-ops.
+     *
+     * @since 2025.1
      */
     public void close() {
         closed = true;
     }
 
+    /**
+     * Returns whether this connection has been closed.
+     *
+     * @return {@code true} if the connection is closed
+     * @since 2025.1
+     */
     public boolean isClosed() {
         return closed;
     }

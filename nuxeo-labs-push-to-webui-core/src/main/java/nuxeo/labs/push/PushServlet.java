@@ -20,7 +20,6 @@
 package nuxeo.labs.push;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
@@ -64,7 +63,7 @@ public class PushServlet extends HttpServlet {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
             return;
         }
-        String username = principal.getName();
+        var username = principal.getName();
 
         // Set SSE headers
         response.setContentType("text/event-stream");
@@ -74,10 +73,10 @@ public class PushServlet extends HttpServlet {
         // Prevent buffering by proxies
         response.setHeader("X-Accel-Buffering", "no");
 
-        PrintWriter writer = response.getWriter();
-        SseConnection connection = new SseConnection(writer);
+        var writer = response.getWriter();
+        var connection = new SseConnection(writer);
 
-        PushNotificationService service = Framework.getService(PushNotificationService.class);
+        var service = Framework.getService(PushNotificationService.class);
         service.register(username, connection);
 
         // Send initial comment to confirm connection

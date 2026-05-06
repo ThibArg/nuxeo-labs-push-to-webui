@@ -19,7 +19,6 @@
  */
 package nuxeo.labs.push;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,7 +61,7 @@ public class PushNotificationServiceImpl extends DefaultComponent implements Pus
 
     @Override
     public void unregister(String username, SseConnection connection) {
-        Set<SseConnection> conns = connections.get(username);
+        var conns = connections.get(username);
         if (conns != null) {
             conns.remove(connection);
             if (conns.isEmpty()) {
@@ -74,14 +73,14 @@ public class PushNotificationServiceImpl extends DefaultComponent implements Pus
 
     @Override
     public void pushToUser(String username, String message) {
-        Set<SseConnection> conns = connections.get(username);
+        var conns = connections.get(username);
         if (conns == null || conns.isEmpty()) {
             log.debug("No active connections for user: {}, message dropped", username);
             return;
         }
-        Iterator<SseConnection> it = conns.iterator();
+        var it = conns.iterator();
         while (it.hasNext()) {
-            SseConnection conn = it.next();
+            var conn = it.next();
             if (conn.isClosed()) {
                 it.remove();
             } else {

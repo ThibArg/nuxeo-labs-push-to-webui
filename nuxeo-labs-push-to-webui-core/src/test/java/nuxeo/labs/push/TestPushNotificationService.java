@@ -43,6 +43,11 @@ import org.nuxeo.runtime.test.runner.FeaturesRunner;
 
 /**
  * Tests for {@link PushNotificationService} and {@link PushToWebUIOp}.
+ * <p>
+ * {@link SseConnection} is created with a {@link PrintWriter} backed by a
+ * {@link StringWriter} to keep tests simple and focused on the service logic.
+ * This avoids the need for an HTTP server or servlet container — we test
+ * message routing and the automation operation, not the HTTP/SSE transport layer.
  *
  * @since 2025.1
  */
